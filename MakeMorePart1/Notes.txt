@@ -1,0 +1,14 @@
+Terms:
+
+1. Braodcasting
+
+2. Likelihood : product of the proabbilities
+
+3. simple bigram model training. simmply generate probabilities of the count of bigrams
+
+4. log probabilities are negative. 
+
+5. Goal, maximize likelihood of the data w.r.t model parameters (statistical modelling)
+	--> equivalent to maximizing the log likelihood
+	--> equivalent to minimizing the negative log likelihood
+	--> equivalent to minimizing the average negative log likelihood

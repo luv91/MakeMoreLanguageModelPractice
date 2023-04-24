@@ -32,6 +32,6 @@ Terms:
 	and probabilities will be completely uniform . this is a kind of regularization
 	
 14. but instead of doing 13, we add a regularizer to loss (regularizer ==> 0.01*(W**2).mean())
-    # loss = -probs[torch.arange(num), ys].log().mean() +0.01*(W**2).mean()
+    loss = -probs[torch.arange(num), ys].log().mean() +0.01*(W**2).mean()
 
 	

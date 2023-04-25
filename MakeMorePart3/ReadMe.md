@@ -5,7 +5,9 @@
 2. output logits ==> logits = h @ W2 + b2 # output layer;
 
     a. b2 should be zero at initialization.
+	
     b. W2 should be smaller, so multiplied by 0.1 ==> W2 = torch.randn((n_hidden, vocab_size), generator=g) * 0.1
+	
         But why not zero initially?
 
 Because of a and b, the initial loss was much lower.
@@ -17,6 +19,7 @@ Because of a and b, the initial loss was much lower.
 2. This is a huge problem for during the backpropagation because we will propagate through torch.tanh(emb.view(emb.shape[0], -1) @ W1 + b1)
 
     a. If many of them are near -1 or 1, their gradient will be killed. We will not backpropagate through
+	
         - Those units where values are extreme (-1,1) in the forward pass.
         - Because self.grad += (1-t**2)*out.grad ==> t is (-1, 1) ==> self.grad = 0
         
@@ -32,21 +35,77 @@ Because of a and b, the initial loss was much lower.
    But we want their variance to be constant, do not change much.
 
     a. x = torch.randn(1000,10)
+	
     b. w = torch.randn(10,200) # 10 inputs, 200 neurons in the hidden layer
+	
     c. y = x @ w
+	
     d. print(x.mean(), x.std())
+	
     e. print(y.mean(), y.std())
 
     ### Initial values:
 
     g. ######## tensor(-0.0185) tensor(1.0030)
+	
     h. ######## tensor(-0.0028) tensor(3.2714) ==>
+	
     i. ######## y's standard deviation has expanded from 1.0030 to 3, means Gaussian is expanding, and we do not want that.
 
     ### How can we preserve this? Not let the thing expand?
-    ### Answer: is to divide the weight by the square root of input; w = torch.randn(10,200) --> becomes --> w = torch.randn(10,200)/(10**0.5)	
+    ### Answer: is to divide the weight by the square root of input; w = torch.randn(10,200) --> 
+	    --> becomes --> w = torch.randn(10,200)/(10**0.5)	==> according to Kaiming Normal std = gain/(fan_mode)**0.5
 	
 	j. most common wy of initialization is kaiming_normal
+	
+	k. from kaimang_normal, standard deviation be:
+	
+	   std = gain/(fan_mode)**0.5 ; 
+	   
+	   so W1 changes. finally to below
+	   
+	   gain = 5/3
+	   
+	   kaiming_normal_std = gain/((n_embd * block_size)**0.5)
+	   
+	   W1 = torch.randn((n_embd * block_size, n_hidden), generator=g) *kaiming_normal_std
+	   
+## Modern innovation to deal with variances/initialization issues:
+
+1. Batch normalization: we have hidden states, and we like them to be roughly gaussian??
+	
+		--> then why not take the hidden states and normalize them to be Gaussian?
+		
+		--> but why do we want them to be Unit Gaussian?? 
+		
+		--> Because Neurons will not get dead
+		
+	
+		### Thus standardizing:
+		
+		--> hpreact = embcat @ W1 + b1  # torch.Size([32, 200])
+    
+		--> hpreact = (hpreact - hpreact.mean(0, keepdim = True))/hpreact.std(0, keepdim = True)
+		
+		### we will not achieve very good results with this, because we want them to be gaussian but only at iniitialization. 
+		
+		### we do not want them to be forced to the Gaussian always, so we have to scale and shift
+		
+		--> so we have batch normalziation gain and bais
+		
+		--> hpreact = bngain* (hpreact - hpreact.mean(0, keepdim = True))/hpreact.std(0, keepdim = True) + bnbias
+		
+		--> bngain and bnbias are trainable. 
+		
+		
+2. Use of batch normalization, create dependency among all the examples in a minibatch, because it is creating
+
+   a unit gaussian distribution over all the examples in a batch. This turns out to be good, 
+   
+   in training. this act as a regularizer. 
+		
+		
+	
 	
 
 		

@@ -72,7 +72,10 @@ W2 = torch.randn((n_hidden, vocab_size),          generator=g) * 0.01 # why not 
 
 b2 = torch.randn(vocab_size,                      generator=g) *0 # b2 should be 0 at initialization
 
-parameters = [C, W1, b1, W2, b2]
+bngain = torch.ones((1, n_hidden)) # batch normalization gain
+bnbias = torch.zeros((1, n_hidden)) # batch normalization bias
+
+parameters = [C, W1, b1, W2, b2, bngain, bnbias]
 print(sum(p.nelement() for p in parameters)) # number of parameters in total
 for p in parameters:
   p.requires_grad = True
@@ -98,7 +101,21 @@ for i in range(max_steps):
     # this is too far from 0, and thus causing the issue. where many of them
     # are dead (leads to the extreme values once tanh is applied)
     # 
-    hpreact = embcat @ W1 + b1 # hidden layer pre-activation # distribution is very broad at initilization
+    # hidden layer pre-activation # distribution is very broad at initilization
+    hpreact = embcat @ W1 + b1  # torch.Size([32, 200])
+    
+    # this distribution is unit gaussian
+    hpreact = bngain* (hpreact - hpreact.mean(0, keepdim = True))/hpreact.std(0, keepdim = True) + bnbias
+    
+    # calculate their mean of 32 inputs. # torch.Size([1, 200])
+    print("hpreact.mean(0, keepdim = True).shape",hpreact.mean(0, keepdim = True).shape)
+    
+    # calculate their standard deviation of 32 inputs. # torch.Size([1, 200])
+    print("hpreact.std(0, keepdim = True).shape",hpreact.std(0, keepdim = True).shape)
+    
+    # now normalzie the hpreact to be unit gaussian:
+    
+        
     h = torch.tanh(hpreact)  # hidden layer
     
     # how can we achieve logits at initialization to be more

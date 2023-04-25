@@ -1,3 +1,7 @@
+# Implemented character Level bigram model using:
+## a. counting model only (No neural net)
+## b. Super simple 1 layer (with 27 neurons) neural network with both forward and backward pass
+
 Terms:
 
 1. Broadcasting

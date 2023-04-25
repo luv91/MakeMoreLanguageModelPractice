@@ -45,11 +45,11 @@
 
 	###### intial values:
 	######## =============================================================================
-	######## tensor(-0.0185) tensor(1.0030)
-	######## tensor(-0.0028) tensor(3.2714) ==>
-    ########	y's standard deviation has explanded from 1.0030 to 3, means gaussian is explanding. and we do not want that. 
+	d. ######## tensor(-0.0185) tensor(1.0030)
+	e. ######## tensor(-0.0028) tensor(3.2714) ==>
+    f. ########	y's standard deviation has explanded from 1.0030 to 3, means gaussian is explanding. and we do not want that. 
 	
 	### how can we preserve this? not let the thing expand?
-	##### answer: is to divide weight by square root of input; w = torch.randn(10,200) becomes w = torch.randn(10,200)/(10**0.5)
+	### Answer: is to divide weight by square root of input; w = torch.randn(10,200) --> becomes --> w = torch.randn(10,200)/(10**0.5)
 
 		

@@ -75,6 +75,11 @@ b2 = torch.randn(vocab_size,                      generator=g) *0 # b2 should be
 bngain = torch.ones((1, n_hidden)) # batch normalization gain
 bnbias = torch.zeros((1, n_hidden)) # batch normalization bias
 
+bnmean_running = torch.zeros((1, n_hidden))
+bnstd_running = torch.ones((1, n_hidden))
+
+
+
 parameters = [C, W1, b1, W2, b2, bngain, bnbias]
 print(sum(p.nelement() for p in parameters)) # number of parameters in total
 for p in parameters:
@@ -102,10 +107,27 @@ for i in range(max_steps):
     # are dead (leads to the extreme values once tanh is applied)
     # 
     # hidden layer pre-activation # distribution is very broad at initilization
-    hpreact = embcat @ W1 + b1  # torch.Size([32, 200])
+    #hpreact = embcat @ W1 + b1  # torch.Size([32, 200])
     
+    # bias b1 commented out, because it is getting subtracted in hpreact formula bngain* (hpreact - bnmeani)/bnstdi + bnbias
+    # so gradient of it will be 0 which means no impact on ewights. 
+    # so comment out biases which comes before batch normalizations
+    
+    hpreact = embcat @ W1 #+ b1  # torch.Size([32, 200])
+    
+    bnmeani = hpreact.mean(0, keepdim = True)
+    
+    bnstdi = hpreact.std(0, keepdim = True)
     # this distribution is unit gaussian
-    hpreact = bngain* (hpreact - hpreact.mean(0, keepdim = True))/hpreact.std(0, keepdim = True) + bnbias
+    hpreact = bngain* (hpreact - bnmeani)/bnstdi + bnbias
+    
+    # creating running mean and standard deviation. but we do not want backprops on them
+    with torch.no_grad():
+        bnmean_running = 0.999*bnmean_running + 0.001*bnmeani
+        bnstd_running = 0.999*bnstd_running + 0.001*bnstdi
+        
+        
+    
     
     # calculate their mean of 32 inputs. # torch.Size([1, 200])
     print("hpreact.mean(0, keepdim = True).shape",hpreact.mean(0, keepdim = True).shape)
@@ -211,6 +233,14 @@ val = 2.13
 train = 2.0355
 val = 2.102
 
+# after usingsemi-principled "kaimiing init" at initialization
+train = 2.03766
+val = 2.1681
+
+# add a batch norm layer
+train = 2.0668 
+val = 2.1048
+
 #%% Manual, very manual: looking at initialization wrong with the example.. 
 
 # say just have 4 charcaters.. 
@@ -267,6 +297,22 @@ plt.hist(y.view(-1).tolist(), 50, density = True)
 #%% Checking the loss after training. 
 plt.plot(lossi)
 
+#%% calibrate ==> this is a second stage thing, but we have combined this already in 
+# a trianing process, and we do not need it. 
+
+# calibrate the batch norm at the end of training
+
+with torch.no_grad():
+  # pass the training set through
+  emb = C[Xtr]
+  embcat = emb.view(emb.shape[0], -1)
+  hpreact = embcat @ W1 # + b1
+  # measure the mean/std over the entire training set
+  bnmean = hpreact.mean(0, keepdim=True)
+  bnstd = hpreact.std(0, keepdim=True)
+  
+
+#%%
 
 @torch.no_grad() # this decorator disables gradient tracking
 def split_loss(split):
@@ -278,6 +324,11 @@ def split_loss(split):
     emb = C[x] # (N, block_size, n_embd)
     embcat = emb.view(emb.shape[0], -1) # concat into (N, block_size * n_embd)
     hpreact = embcat @ W1 + b1
+
+    # this distribution is unit gaussian
+    #hpreact = bngain* (hpreact - hpreact.mean(0, keepdim = True))/hpreact.std(0, keepdim = True) + bnbias
+    
+    hpreact = bngain * (hpreact - bnmean_running)/bnstd_running + bnbias
 
     h = torch.tanh(hpreact) # (N, n_hidden)
     

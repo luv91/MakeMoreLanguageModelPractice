@@ -102,10 +102,32 @@ Because of a and b, the initial loss was much lower.
 
    a unit gaussian distribution over all the examples in a batch. This turns out to be good, 
    
-   in training. this act as a regularizer. 
+   in training. this act as a regularizer.
 		
+### Another outcome (apart from acting as a regularizer) of the coupling between random examples due to batch normalization
 		
+	--> question? after training how can we test a single example, since their are batch parameters involved ??
 	
+	--> estimate batch norm and std over entire training set (bnmean, bnstd), after trianing, we are not backpropagating
 	
+	--> once calcualted, they will be fixed numbers. 
+	
+	--> and while calalatung loss over testing set using:
+	
+	hpreact = bngain* (hpreact - hpreact.mean(0, keepdim = True))/hpreact.std(0, keepdim = True) + bnbias
 
+    we will use these bnmean and bnstd, that is, hpreact = bngain * (hpreact - bnmean)/bnstd + bnbias
+	
+### benefit, now we can forward a single example also.. can be used for testing. 
+
+### but let's not calculated them separately, lets calculate bnmean and bnstd while running training
+
+	
+### calculating bias in hpreact = embcat @ W1 + b1  is useless, because it gets sibtracted in: hpreact = bngain* (hpreact - bnmeani)/bnstdi + bnbias
+
+	--> so comment out the bias in the layers just before batch normalization layers. 
+	
+	--> hpreact = embcat @ W1 #+ b1  # torch.Size([32, 200]) # b1 commented out
+	
+	--> instead we have batch normalziation bias : hpreact = bngain* (hpreact - bnmeani)/bnstdi + bnbias
 		

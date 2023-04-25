@@ -60,10 +60,13 @@ n_hidden = 200 # the number of neurons in the hidden layer of the MLP
 
 g = torch.Generator().manual_seed(2147483647) # for reproducibility
 C  = torch.randn((vocab_size, n_embd),            generator=g)
-W1 = torch.randn((n_embd * block_size, n_hidden), generator=g)
-b1 = torch.randn(n_hidden,                        generator=g)
-W2 = torch.randn((n_hidden, vocab_size),          generator=g)
-b2 = torch.randn(vocab_size,                      generator=g) *0 
+W1 = torch.randn((n_embd * block_size, n_hidden), generator=g) *0.2
+b1 = torch.randn(n_hidden,                        generator=g) * 0.01
+
+W2 = torch.randn((n_hidden, vocab_size),          generator=g) * 0.01 # why not 0 at initiualization? 
+
+
+b2 = torch.randn(vocab_size,                      generator=g) *0 # b2 should be 0 at initialization
 
 parameters = [C, W1, b1, W2, b2]
 print(sum(p.nelement() for p in parameters)) # number of parameters in total
@@ -87,7 +90,11 @@ for i in range(max_steps):
     emb = C[Xb] # embed the characters into vectors
     embcat = emb.view(emb.shape[0], -1) # concatenate the vectors
     # Linear layer
-    hpreact = embcat @ W1 + b1 # hidden layer pre-activation
+    
+    # this is too far from 0, and thus causing the issue. where many of them
+    # are dead (leads to the extreme values once tanh is applied)
+    # 
+    hpreact = embcat @ W1 + b1 # hidden layer pre-activation # distribution is very broad at initilization
     h = torch.tanh(hpreact)  # hidden layer
     
     # how can we achieve logits at initialization to be more
@@ -115,7 +122,26 @@ for i in range(max_steps):
     lossi.append(loss.log10().item())
     
     break
+
+print("h", h)  #many in h tensor are 1. 
+plt.hist(h.view(-1).tolist(), 50)  #many values are -1 and 1. 
+
+#This is a huge problem for during the backproagation. 
+#because we will propagate through torch.tanh(emb.view(emb.shape[0], -1) @ W1 + b1)
+
+# =============================================================================
+# 	a. if many of them are near -1 or 1, their gradient will be killed. we will not backpropagate through 
+# 		--> those units where values are etreme (-1,1) in forward pass. 
+# 		--> because self.grad += (1-t**2)*out.grad ==> t is (-1, 1) ==> self.grad = 0
+# =============================================================================
     
+# to check in how many of them backward gradient will get destroyed:
+    # what is black and what is white?
+    # white is dead neuron. ; white means dead/saturate neuron
+    
+plt.figure(figsize = (20,10))
+plt.imshow(h.abs() > 0.99, cmap = 'gray', interpolation = 'nearest')
+
 #%% loss progression 
 #==> inital step loss is way too high (27). so something
 # is wrong with setting up at initialization. 
@@ -150,6 +176,20 @@ for i in range(max_steps):
 #  190000/ 200000: 1.8522
 # =============================================================================
 
+#%% loss values till now.. fixing initializations
+
+# original
+train = 2.1245
+val = 2.1681
+
+# fix softmax confidently wrong
+train = 2.07
+val = 2.13
+
+# fix tanh layer too saturate at init
+train = 2.0355
+val = 2.102
+
 #%% Manual, very manual: looking at initialization wrong with the example.. 
 
 # say just have 4 charcaters.. 
@@ -179,6 +219,28 @@ print("Line 172: probs, loss: ", probs, loss) #tensor(5.0200)
 
 print("Line 174: Point is that logits have to be equal when they are initialized, means loss will not be that high")
 
+#%% Understanding Variance changes in the neural network. 
+
+x = torch.randn(1000,10)
+#w = torch.randn(10,200) # 10 inputs, 200 neurons in the hidden layer
+
+w = torch.randn(10,200) / (10**0.5) # 10 inputs, 200 neurons in the hidden layer
+
+y = x @ w
+print(x.mean(), x.std())
+print(y.mean(), y.std())
+
+# intial values:
+# =============================================================================
+# tensor(-0.0185) tensor(1.0030)
+# tensor(-0.0028) tensor(3.2714) ==> y's standard deviation has explanded from 1.0030 to 3
+# =============================================================================
+
+plt.figure(figsize = (20,5))
+plt.subplot
+plt.hist(x.view(-1).tolist(), 50, density = True)
+plt.subplot(122)
+plt.hist(y.view(-1).tolist(), 50, density = True)
 #%% Checking the loss after training. 
 plt.plot(lossi)
 
@@ -195,6 +257,7 @@ def split_loss(split):
     hpreact = embcat @ W1 + b1
 
     h = torch.tanh(hpreact) # (N, n_hidden)
+    
     logits = h @ W2 + b2 # (N, vocab_size)
     loss = F.cross_entropy(logits, y)
     print(split, loss.item())
@@ -213,6 +276,7 @@ for _ in range(20):
     while True:
       # forward pass the neural net
       emb = C[torch.tensor([context])] # (1,block_size,n_embd)
+      
       h = torch.tanh(emb.view(1,-1) @ W1 + b1)
       
       logits = h @  W2 + b2

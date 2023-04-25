@@ -37,17 +37,23 @@
    
 	
 	a. x = torch.randn(1000,10)
+	
 	b. w = torch.randn(10,200) # 10 inputs, 200 neurons in the hidden layer
 
 	c. y = x @ w
-	print(x.mean(), x.std())
-	print(y.mean(), y.std())
+	
+	d. print(x.mean(), x.std())
+	
+	e. print(y.mean(), y.std())
 
-	###### intial values:
-	######## =============================================================================
-	d. ######## tensor(-0.0185) tensor(1.0030)
-	e. ######## tensor(-0.0028) tensor(3.2714) ==>
-    f. ########	y's standard deviation has explanded from 1.0030 to 3, means gaussian is explanding. and we do not want that. 
+	### intial values:
+	
+	
+	g. ######## tensor(-0.0185) tensor(1.0030)
+	
+	h. ######## tensor(-0.0028) tensor(3.2714) ==>
+	
+    i. ########	y's standard deviation has explanded from 1.0030 to 3, means gaussian is explanding. and we do not want that. 
 	
 	### how can we preserve this? not let the thing expand?
 	### Answer: is to divide weight by square root of input; w = torch.randn(10,200) --> becomes --> w = torch.randn(10,200)/(10**0.5)
